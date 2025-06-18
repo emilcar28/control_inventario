@@ -1,12 +1,12 @@
 <?php
+session_start();
 require_once '../vendor/autoload.php';
 require_once '../database.php';
-require_once '../header.php';
+
+use Dompdf\Dompdf;
 
 if ($_SESSION['rol'] !== 'admin' && $_SESSION['rol'] !== 'usuario') {
-    echo "<p>No tienes permiso para registrar movimientos.</p>";
-    include '../footer.php';
-    exit;
+    die("No tienes permiso para registrar movimientos.");
 }
 
 $error = '';
@@ -18,9 +18,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $destino = trim($_POST['destino']);
     $usuario_id = $_SESSION['user_id'];
 
+    // Verificar campos
     if ($cantidad > 0 && $articulo_id !== '' && $tipo !== '') {
-        // Obtener stock actual
-        $stmtStock = $pdo->prepare("SELECT stock FROM articulos WHERE id = ?");
+        // Stock actual
+        $stmtStock = $pdo->prepare("SELECT nombre, stock FROM articulos WHERE id = ?");
         $stmtStock->execute([$articulo_id]);
         $articulo = $stmtStock->fetch();
 
@@ -29,17 +30,47 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } elseif (in_array($tipo, ['salida', 'baja', 'en préstamo', 'traslado', 'en mantenimiento']) && $cantidad > $articulo['stock']) {
             $error = "No hay suficiente stock disponible.";
         } else {
+            // Registrar movimiento
             $stmt = $pdo->prepare("INSERT INTO movimientos (articulo_id, cantidad, tipo, usuario_id, fecha, receptor, destino) 
                                    VALUES (?, ?, ?, ?, NOW(), ?, ?)");
             if ($stmt->execute([$articulo_id, $cantidad, $tipo, $usuario_id, $receptor, $destino])) {
+                // Actualizar stock
                 if (in_array($tipo, ['entrada', 'alta', 'devolución', 'reparado'])) {
-                    $stmt2 = $pdo->prepare("UPDATE articulos SET cantidad = cantidad + ?, stock = stock + ? WHERE id = ?");
-                    $stmt2->execute([$cantidad, $cantidad, $articulo_id]);
-                } elseif (in_array($tipo, ['salida', 'baja', 'en préstamo', 'traslado', 'en mantenimiento'])) {
-                    $stmt2 = $pdo->prepare("UPDATE articulos SET cantidad = cantidad - ?, stock = stock - ? WHERE id = ?");
-                    $stmt2->execute([$cantidad, $cantidad, $articulo_id]);
+                    $pdo->prepare("UPDATE articulos SET cantidad = cantidad + ?, stock = stock + ? WHERE id = ?")
+                        ->execute([$cantidad, $cantidad, $articulo_id]);
+                } else {
+                    $pdo->prepare("UPDATE articulos SET cantidad = cantidad - ?, stock = stock - ? WHERE id = ?")
+                        ->execute([$cantidad, $cantidad, $articulo_id]);
                 }
-                header("Location: lista.php");
+
+                // Generar PDF
+                $fecha_actual = date("d/m/Y H:i");
+                $stmtUser = $pdo->prepare("SELECT usuario FROM usuarios WHERE id = ?");
+                $stmtUser->execute([$usuario_id]);
+                $usuario_nombre = $stmtUser->fetchColumn();
+
+                $html = "
+                <h2>Comprobante de Movimiento</h2>
+                <p><strong>Fecha y Hora:</strong> $fecha_actual</p>
+                <p><strong>Artículo:</strong> " . htmlspecialchars($articulo['nombre']) . "</p>
+                <p><strong>Cantidad:</strong> $cantidad</p>
+                <p><strong>Tipo de Movimiento:</strong> " . ucfirst($tipo) . "</p>
+                <p><strong>Receptor:</strong> " . htmlspecialchars($receptor) . "</p>
+                <p><strong>Destino:</strong> " . htmlspecialchars($destino) . "</p>
+                <p><strong>Registrado por:</strong> " . htmlspecialchars($usuario_nombre) . "</p>
+                <p style='margin-top: 50px;'>Firma del Solicitante: ____________________________</p>
+                 <p style='margin-top: 50px;'>Firma del Personal Autorizado: ____________________________</p>
+                ";
+
+                $dompdf = new Dompdf();
+                $dompdf->loadHtml($html);
+                $dompdf->setPaper('A4', 'portrait');
+                $dompdf->render();
+
+                // Descargar el PDF
+                header("Content-Type: application/pdf");
+                header("Content-Disposition: attachment; filename=movimiento_" . date("Ymd_His") . ".pdf");
+                echo $dompdf->output();
                 exit;
             } else {
                 $error = "Error al registrar el movimiento.";
@@ -50,9 +81,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
+// Mostrar formulario
 $stmt = $pdo->query("SELECT * FROM articulos");
 $articulos = $stmt->fetchAll();
 ?>
+
+<?php include '../header.php'; ?>
 
 <h2>Nuevo Movimiento</h2>
 <a href="lista.php">🔙 Volver a la lista de movimientos</a>
@@ -94,4 +128,3 @@ $articulos = $stmt->fetchAll();
 <p style="color:red;"><?= $error ?></p>
 
 <?php include '../footer.php'; ?>
-

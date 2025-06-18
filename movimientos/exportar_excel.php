@@ -5,7 +5,11 @@ require_once '../database.php';
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
-// Recibir filtros desde GET....por 11 vez ..a ver que pasa
+// Desactivar todo tipo de salida
+ob_end_clean();
+ob_start();
+
+// Obtener filtros
 $tipo = $_GET['tipo'] ?? '';
 $buscar_articulo = $_GET['buscar_articulo'] ?? '';
 
@@ -34,11 +38,8 @@ $movimientos = $stmt->fetchAll();
 // Crear Excel
 $spreadsheet = new Spreadsheet();
 $sheet = $spreadsheet->getActiveSheet();
-
-// Encabezados
 $sheet->fromArray(['ID', 'Artículo', 'Cantidad', 'Tipo', 'Receptor', 'Destino', 'Fecha', 'Usuario'], null, 'A1');
 
-// Datos
 $row = 2;
 foreach ($movimientos as $mov) {
     $sheet->setCellValue("A{$row}", $mov['id']);
@@ -52,11 +53,13 @@ foreach ($movimientos as $mov) {
     $row++;
 }
 
-// Descargar
+// Configurar cabeceras correctamente
 header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-header('Content-Disposition: attachment;filename="movimientos.xlsx"');
+header('Content-Disposition: attachment; filename="movimientos_' . date("Ymd_His") . '.xlsx"');
 header('Cache-Control: max-age=0');
 
+// Guardar en salida
 $writer = new Xlsx($spreadsheet);
 $writer->save('php://output');
 exit;
+
