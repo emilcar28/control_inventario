@@ -1,0 +1,36 @@
+# 🧠 Ignorar dependencias PHP instaladas por Composer
+/vendor/
+
+# 🧾 Archivos generados por PhpSpreadsheet y dompdf
+*.xlsx
+*.pdf
+
+# 🔐 Archivos sensibles o de configuración
+.env
+.env.local
+config.php
+database.php
+
+# ⚙️ Archivos del sistema o del editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# 📦 Backups y archivos comprimidos
+*.zip
+*.tar.gz
+*.bak
+*.tmp
+*.log
+
+# 🖼️ Imágenes temporales o cacheadas (si generás QR o PDF preview por ejemplo)
+img/temp/
+tmp/
+cache/
+
+# 💻 Archivos de sesión (si usás file-based sessions)
+sessions/
+
+# 📋 Exportaciones de Excel generadas
+exportar/movimientos*.xlsx
