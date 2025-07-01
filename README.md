@@ -44,3 +44,18 @@ Este sistema de gestión de inventario fue desarrollado en PHP clásico, con bas
 - Navegador moderno
 
 ---
+### Extensiones PHP requeridas
+
+Debes habilitar estas extensiones en tu archivo `php.ini`:
+
+- `ext-gd` — para generación de códigos QR
+- `ext-mbstring` — para manejo de caracteres multibyte y PDF
+- `ext-zip` — para exportar archivos Excel
+- `ext-fileinfo` — para detección de tipos de archivos
+- `ext-json` — para manipulación de datos JSON
+- ### Dependencias vía Composer
+
+Este proyecto usa Composer para manejar dependencias. Asegúrate de ejecutar:
+
+```bash
+composer install
